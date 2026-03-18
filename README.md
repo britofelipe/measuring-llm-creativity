@@ -40,3 +40,20 @@ python scripts/run_pipeline.py \
 - Les métriques `LLM judge` sont optionnelles. Le projet inclut une interface/stub propre, mais **ne lance pas automatiquement d’appel API**.
 - Le `N-gram Rarity Score` est calculé ici par défaut **sur le corpus compar:IA lui-même** (baseline empirique). Vous pourrez remplacer cette baseline plus tard par un corpus externe.
 
+## Question 2 : Modèle Bradley-Terry (compar:IA)
+
+Pipeline pour classer les modèles selon les préférences humaines (`comparia-votes`) via l'estimation du modèle de Bradley-Terry.
+
+### Structure (`src/bradley-terry/`)
+- `preprocessing.py` : Nettoyage, filtres de N comparaisons, matrices de gains ($W[i,j]$) et d'empates.
+- `exercise_2_1.py` : Entraînement MM du modèle global vs classement créativité (Spearman $\rho$).
+- `exercise_2_2.py` : Transitivité stochastique, power analysis, et modèle de Davidson pour *ex-æquo*.
+- `exercise_2_3.py` : Modèle à covariables (Régression Logistique GLMM) capturant l'effet du temps et de la longueur des réponses sur la préférence.
+
+### Exécution
+Assurez-vous d'être connecté à compte HuggingFace via `huggingface-cli login` pour télécharger `comparia-votes`.
+```bash
+python src/bradley-terry/exercise_2_1.py
+python src/bradley-terry/exercise_2_2.py
+python src/bradley-terry/exercise_2_3.py
+```
