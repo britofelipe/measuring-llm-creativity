@@ -1,0 +1,9 @@
+pandas
+pyarrow
+numpy
+scipy
+scikit-learn
+sentence-transformers
+bert-score
+rouge-score
+tqdm

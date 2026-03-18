@@ -3,6 +3,13 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+
+# Folders
+outputs/
+venv_*/
+
+# macOS
+*.DS_Store
 # C extensions
 *.so
 
