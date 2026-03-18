@@ -34,6 +34,27 @@ python scripts/run_pipeline.py \
   --output-dir outputs
 ```
 
+````
+python scripts/build_ngram_reference.py \
+  --dataset-name kaitchup/wikipedia-20220301-fr-sample-10k \
+  --split train \
+  --text-col text \
+  --ngram-n 2 \
+  --output-path resources/wikipedia_fr_sample_bigram_counts.pkl
+```
+```
+python scripts/run_pipeline.py \
+  --sample-size 50 \
+  --rarity-reference-path resources/wikipedia_fr_sample_bigram_counts.pkl \
+  --output-dir outputs_wiki_ref
+```
+```
+python scripts/run_pipeline.py \
+  --sample-size 200 \
+  --rarity-reference-path resources/wikipedia_fr_sample_bigram_counts.pkl \
+  --output-dir outputs_logreg \
+  --optimize-logreg
+```
 ## Remarques
 
 - Les métriques utilisant des embeddings exigent un modèle `sentence-transformers`.

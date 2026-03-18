@@ -11,6 +11,7 @@ from .metrics_novelty import build_ngram_reference, add_novelty_metrics
 from .metrics_value import add_value_metrics
 from .metrics_surprise import add_surprise_metrics
 from .llm_judge import add_judge_scores, JudgeBackend
+from .scoring import add_provisional_creativity_index
 
 
 def run_pipeline(
@@ -36,10 +37,14 @@ def run_pipeline(
     question_embeddings = embedder.encode(df["question_content"].tolist())
     response_embeddings = embedder.encode(df["response_content"].tolist())
 
-    rarity_reference = build_ngram_reference(
-        df["response_content"].tolist(),
-        n=metric_config.rarity_ngram_n,
-    )
+    if metric_config.rarity_reference_path:
+        from .metrics_novelty import load_ngram_reference
+        rarity_reference = load_ngram_reference(metric_config.rarity_reference_path)
+    else:
+        rarity_reference = build_ngram_reference(
+            df["response_content"].tolist(),
+            n=metric_config.rarity_ngram_n,
+        )
 
     df = add_novelty_metrics(
         df=df,
@@ -64,5 +69,6 @@ def run_pipeline(
         neighbor_k=metric_config.neighbor_k,
     )
 
-    df = add_judge_scores(df, backend=judge_backend)
+    #df = add_judge_scores(df, backend=judge_backend)
+    df = add_provisional_creativity_index(df)
     return df
