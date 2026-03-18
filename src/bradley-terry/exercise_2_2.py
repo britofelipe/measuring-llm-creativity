@@ -37,6 +37,9 @@ def test_stochastic_transitivity(W: pd.DataFrame, top_k: int = 20):
     print(f"Weak Stochastic Transitivity Violations: {wst_violations} ({(wst_violations/triplets)*100:.1f}%)")
     print(f"Strong Stochastic Transitivity Violations: {sst_violations} ({(sst_violations/triplets)*100:.1f}%)")
 
+import matplotlib.pyplot as plt
+import os
+
 def power_analysis(beta_3: float, beta_5: float, alpha=0.05, power=0.80):
     pi_3 = np.exp(beta_3)
     pi_5 = np.exp(beta_5)
@@ -50,8 +53,97 @@ def power_analysis(beta_3: float, beta_5: float, alpha=0.05, power=0.80):
     
     p0 = 0.5
     N = ((z_alpha * np.sqrt(p0 * (1 - p0)) + z_beta * np.sqrt(p * (1 - p))) / (p - p0))**2
+    n_80 = int(np.ceil(N))
+    print(f"Minimum comparisons needed to distinguish rank 3 from rank 5 (80% power, alpha=0.05): {n_80}")
     
-    print(f"Minimum comparisons needed to distinguish rank 3 from rank 5 (80% power, alpha=0.05): {int(np.ceil(N))}")
+    from statsmodels.stats.proportion import proportion_effectsize
+    import statsmodels.stats.power as smp
+    
+    n_obs = np.linspace(100, max(10000, n_80 * 1.5), 100)
+    effect_size = proportion_effectsize(p, 0.5)
+    powers = smp.NormalIndPower().solve_power(effect_size=effect_size, nobs1=n_obs, alpha=0.05, ratio=1.0)
+    
+    os.makedirs("results", exist_ok=True)
+    plt.figure(figsize=(8, 5))
+    plt.plot(n_obs, powers, lw=2, color='darkgreen')
+    plt.axhline(0.80, color='red', linestyle='--', alpha=0.7, label='80% Power')
+    plt.axvline(n_80, color='red', linestyle='--', alpha=0.7)
+    plt.annotate(f'N ≈ {n_80}', xy=(n_80, 0.80), xytext=(n_80*1.1, 0.6),
+                 arrowprops=dict(facecolor='black', shrink=0.05, width=1, headwidth=5))
+    
+    plt.title(f'Power Curve to distinguish Rank 3 and 5 (p={p:.3f})')
+    plt.xlabel('Number of Comparisons (N)')
+    plt.ylabel('Statistical Power')
+    plt.grid(True, alpha=0.3)
+    plt.legend()
+    plt.savefig("results/power_curve.png", dpi=300, bbox_inches='tight')
+    plt.close()
+    print("Power curve plot saved to results/power_curve.png")
+
+def plot_confrontation_heatmap(W: pd.DataFrame, output_path: str = "results/confrontation_heatmap.png"):
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    import seaborn as sns
+    plt.figure(figsize=(10, 8))
+    W_mat = W.values
+    N_mat = W_mat + W_mat.T
+    
+    with np.errstate(divide='ignore', invalid='ignore'):
+        win_rate = np.divide(W_mat, N_mat)
+        win_rate[N_mat == 0] = np.nan
+        
+    sns.heatmap(win_rate, xticklabels=W.columns, yticklabels=W.index, 
+                cmap="RdYlGn", center=0.5, cbar_kws={'label': 'Win Rate (Row vs Col)'})
+    plt.title("Top-20 Pairwise Confrontation Heatmap")
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    plt.close()
+    print(f"Heatmap saved to {output_path}")
+
+def plot_calibration(W: pd.DataFrame, beta: pd.Series, output_path: str = "results/calibration_plot.png"):
+    n = len(W)
+    probs_pred = []
+    probs_obs = []
+    weights = []
+    
+    W_mat = W.values
+    N_mat = W_mat + W_mat.T
+    pi = np.exp(beta.values)
+    
+    for i in range(n):
+        for j in range(i+1, n):
+            if N_mat[i, j] >= 5: 
+                p_hat = pi[i] / (pi[i] + pi[j])
+                p_obs = W_mat[i, j] / N_mat[i, j]
+                probs_pred.append(p_hat)
+                probs_obs.append(p_obs)
+                weights.append(N_mat[i, j])
+                
+                probs_pred.append(1 - p_hat)
+                probs_obs.append(1 - p_obs)
+                weights.append(N_mat[i, j])
+                
+    if not probs_pred:
+        return
+        
+    plt.figure(figsize=(8, 8))
+    plt.scatter(probs_pred, probs_obs, s=np.array(weights)*0.5, alpha=0.5, color='indigo')
+    plt.plot([0, 1], [0, 1], 'k--', alpha=0.5)
+    
+    from scipy.stats import binned_statistic
+    try:
+        bin_means, bin_edges, _ = binned_statistic(probs_pred, probs_obs, statistic='mean', bins=8, range=(0, 1))
+        bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+        plt.plot(bin_centers, bin_means, 'rx-', lw=2, markersize=8, label='Empirical Calibration Curve')
+    except:
+        pass
+        
+    plt.title('Bradley-Terry Calibration Plot (Pairs with >= 5 matches)')
+    plt.xlabel('Predicted Win Probability')
+    plt.ylabel('Observed Win Rate')
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    plt.close()
+    print(f"Calibration plot saved to {output_path}")
 
 def fit_davidson(W: pd.DataFrame, T: pd.DataFrame):
     models = W.index
@@ -70,7 +162,7 @@ def fit_davidson(W: pd.DataFrame, T: pd.DataFrame):
         
         num_t = nu * np.sqrt(pi_col * pi_row)
         denom = pi_col + pi_row + num_t
-        np.fill_diagonal(denom, 1.0) # avoid division issues on diagonal
+        np.fill_diagonal(denom, 1.0)
         
         p_win = pi_col / denom
         p_tie = num_t / denom
@@ -78,7 +170,10 @@ def fit_davidson(W: pd.DataFrame, T: pd.DataFrame):
         ll_win = w_mat * np.log(p_win + 1e-10)
         ll_tie = t_mat * np.log(p_tie + 1e-10)
         
-        nll = - (np.sum(ll_win) + 0.5 * np.sum(ll_tie))
+        # Add L2 Regularization to prevent perfect separation and bounded scaling
+        l2_penalty = 0.05 * np.sum(beta**2)
+        
+        nll = - (np.sum(ll_win) + 0.5 * np.sum(ll_tie)) + l2_penalty
         return nll
 
     x0 = np.zeros(n)
@@ -99,12 +194,21 @@ if __name__ == "__main__":
     df_clean = clean_data(df)
     
     df_base = get_base_data(df_clean)
-    df_base_f, valid_models_b = justify_and_filter_N(df_base, min_comparisons=100)
+    df_base_f, valid_models_b = justify_and_filter_N(df_base, min_comparisons=100, regime_name="Global")
     W_base = build_wins_matrix(df_base_f, valid_models_b)
     
     test_stochastic_transitivity(W_base, top_k=20)
     
     beta_base = fit_bt_mm(W_base)
+    
+    # Top 20 for specific diagnostics
+    comps = (W_base + W_base.T).sum(axis=1)
+    top_20_models = comps.nlargest(20).index
+    W_top20 = W_base.loc[top_20_models, top_20_models]
+    
+    plot_confrontation_heatmap(W_top20)
+    plot_calibration(W_top20, beta_base.loc[top_20_models])
+    
     rank_3_val = beta_base.iloc[2]
     rank_5_val = beta_base.iloc[4]
     
@@ -131,3 +235,22 @@ if __name__ == "__main__":
     common = beta_base.index.intersection(beta_davidson.index)
     rho_d, _ = spearmanr(beta_base[common], beta_davidson[common])
     print(f"\nSpearman correlation between Base BT and Davidson: {rho_d:.4f}")
+    
+    plt.figure(figsize=(8, 8))
+    plt.scatter(beta_base[common], beta_davidson[common], alpha=0.6, color='purple')
+    
+    min_val = min(beta_base[common].min(), beta_davidson[common].min())
+    max_val = max(beta_base[common].max(), beta_davidson[common].max())
+    plt.plot([min_val, max_val], [min_val, max_val], 'k--', alpha=0.3)
+    
+    for m in beta_base.head(5).index:
+        if m in common:
+            plt.annotate(m, (beta_base[m], beta_davidson[m]), fontsize=9, xytext=(5, -5), textcoords='offset points')
+            
+    plt.title(f'Bradley-Terry vs Davidson Parameters (rho={rho_d:.2f})')
+    plt.xlabel('Base BT Beta (No ties)')
+    plt.ylabel('Davidson Beta (With ties)')
+    plt.grid(True, alpha=0.3)
+    plt.savefig("results/davidson_comparison.png", dpi=300, bbox_inches='tight')
+    plt.close()
+    print("Davidson comparison plot saved to results/davidson_comparison.png")

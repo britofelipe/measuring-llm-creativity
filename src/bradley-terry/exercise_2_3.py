@@ -91,6 +91,58 @@ def fit_covariate_model(df_cov: pd.DataFrame, top_n: int = 30):
     print("\nTop 10 Models (Base Parameter):")
     print(comp_df.sort_values(by='Beta_Base', ascending=False).head(10))
 
+    import matplotlib.pyplot as plt
+    import os
+    os.makedirs("results", exist_ok=True)
+    
+    params = result.params
+    conf = result.conf_int()
+    pvals = result.pvalues
+    cov_names = [c for c in params.index if 'len_diff' in c or 'conv_turns' in c or 'cat_' in c]
+    
+    if cov_names:
+        # Create summary table
+        summary_df = pd.DataFrame({
+            'Estimate (Log-Odds)': params[cov_names],
+            'CI Lower': conf[0][cov_names],
+            'CI Upper': conf[1][cov_names],
+            'P-value': pvals[cov_names]
+        }).sort_values('Estimate (Log-Odds)')
+        
+        summary_df.to_csv("results/covariate_summary.csv")
+        
+        vals = summary_df['Estimate (Log-Odds)']
+        errors = np.abs(summary_df['CI Upper'] - vals).values
+        
+        # Color: Green if positive sig, Red if negative sig, Gray if not sig
+        colors = []
+        for v, p in zip(vals, summary_df['P-value']):
+            if p >= 0.05: colors.append('gray')
+            elif v > 0: colors.append('#2ca02c')
+            else: colors.append('#d62728')
+            
+        plt.figure(figsize=(10, max(5, len(vals)*0.5)))
+        plt.errorbar(vals, range(len(vals)), xerr=errors, fmt='none', ecolor='black', elinewidth=1, capsize=4, zorder=1)
+        plt.scatter(vals, range(len(vals)), c=colors, s=60, zorder=2)
+                     
+        plt.yticks(range(len(vals)), vals.index)
+        plt.axvline(0, color='k', linestyle='--', alpha=0.5)
+        plt.xlabel('Logistic Regression Coefficient (Log-Odds)')
+        plt.title('Effect of Constraints on Pairwise Win Probability (95% CI)')
+        plt.grid(axis='x', alpha=0.3)
+        
+        # Custom Legend
+        from matplotlib.patches import Patch
+        legend_elements = [Patch(facecolor='#2ca02c', label='Sig. Positive'),
+                           Patch(facecolor='#d62728', label='Sig. Negative'),
+                           Patch(facecolor='gray', label='Not Significant (p >= 0.05)')]
+        plt.legend(handles=legend_elements, loc='best')
+        
+        plt.savefig("results/covariate_effects.png", dpi=300, bbox_inches='tight')
+        plt.close()
+        print("\nCovariate effects plot saved to results/covariate_effects.png")
+        print("Model summary table saved to results/covariate_summary.csv")
+
 if __name__ == "__main__":
     df = load_data()
     df_clean = clean_data(df)

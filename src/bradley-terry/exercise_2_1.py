@@ -46,6 +46,29 @@ def fit_bt_mm(W: pd.DataFrame, max_iter: int = 1000, tol: float = 1e-6) -> pd.Se
     
     return pd.Series(beta, index=models, name="beta").sort_values(ascending=False)
 
+def get_bt_standard_errors(W: pd.DataFrame, beta: pd.Series) -> pd.Series:
+    """Calculates asymptotic standard errors using the Moore-Penrose pseudo-inverse of the Fisher Information Matrix."""
+    models = W.index
+    W_mat = W.values
+    N_mat = W_mat + W_mat.T
+    
+    pi = np.exp(beta.values)
+    pi_col = pi[:, np.newaxis]
+    pi_row = pi[np.newaxis, :]
+    
+    denom = (pi_col + pi_row)**2
+    np.fill_diagonal(denom, 1.0)
+    
+    H = - N_mat * (pi_col * pi_row) / denom
+    np.fill_diagonal(H, 0)
+    H_diag = -np.sum(H, axis=1)
+    np.fill_diagonal(H, H_diag)
+    
+    cov = np.linalg.pinv(-H)
+    se = np.sqrt(np.abs(np.diag(cov)))
+    
+    return pd.Series(se, index=models)
+
 def plot_rank_comparison(beta_global: pd.Series, beta_creative: pd.Series, output_path: str = "results/rank_comparison.png"):
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     
@@ -87,26 +110,99 @@ def plot_rank_comparison(beta_global: pd.Series, beta_creative: pd.Series, outpu
     
     return rho, shift
 
+def plot_top_models_bar(beta_global: pd.Series, se_global: pd.Series, beta_creative: pd.Series, se_creative: pd.Series, output_path: str = "results/top_models_bar.png"):
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    top15 = beta_global.head(15).index[::-1]
+    
+    fig, ax = plt.subplots(figsize=(12, 8))
+    y_pos = np.arange(len(top15))
+    width = 0.35
+    
+    vals_g = beta_global.loc[top15].values
+    err_g = se_global.loc[top15].values * 1.96  # 95% Confidence Interval
+    
+    vals_c = []
+    err_c = []
+    for m in top15:
+        if m in beta_creative:
+            vals_c.append(beta_creative[m])
+            err_c.append(se_creative[m] * 1.96)
+        else:
+            vals_c.append(0)
+            err_c.append(0)
+    
+    ax.barh(y_pos - width/2, vals_g, width, xerr=err_g, label='Global Preference (95% CI)', color='#1f77b4', capsize=3)
+    ax.barh(y_pos + width/2, vals_c, width, xerr=err_c, label='Creativity Preference (95% CI)', color='#ff7f0e', capsize=3)
+    
+    ax.set_yticks(y_pos)
+    ax.set_yticklabels(top15)
+    ax.set_xlabel('Estimated Preference Strength (Beta)')
+    ax.set_title('Top 15 Models: Global vs Creativity-Filtered Preference')
+    ax.legend()
+    plt.grid(axis='x', alpha=0.3)
+    
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    plt.close()
+    print(f"Bar plot saved to {output_path}")
+
+def plot_beta_shift_movers(beta_global: pd.Series, se_global: pd.Series, beta_creative: pd.Series, se_creative: pd.Series, output_path: str = "results/beta_shift_movers.png"):
+    from scipy.stats import zscore
+    common = beta_global.index.intersection(beta_creative.index)
+    
+    # Standardize beta scores to compare across datasets
+    z_g = pd.Series(zscore(beta_global[common]), index=common)
+    z_c = pd.Series(zscore(beta_creative[common]), index=common)
+    
+    shift = z_c - z_g
+    
+    # Get top 8 gainers and top 8 losers
+    top_gainers = shift.nlargest(8)
+    top_losers = shift.nsmallest(8)
+    movers = pd.concat([top_gainers, top_losers]).sort_values()
+    
+    plt.figure(figsize=(10, 8))
+    colors = ['#d62728' if x < 0 else '#2ca02c' for x in movers.values]
+    
+    # Horizontal bar
+    y_pos = np.arange(len(movers))
+    plt.barh(y_pos, movers.values, color=colors, alpha=0.8, edgecolor='black')
+    plt.yticks(y_pos, movers.index)
+    plt.axvline(0, color='k', linestyle='--', alpha=0.5)
+    
+    plt.xlabel('Standardized Preference Shift (Z_creative - Z_global)')
+    plt.title('Largest Movers in Creativity-Filtered Regime (Beta Shift)')
+    plt.grid(axis='x', alpha=0.3)
+    
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    plt.close()
+    print(f"Shift bar plot saved to {output_path}")
+
 if __name__ == "__main__":
     df = load_data()
     df_clean = clean_data(df)
     
     print("\n[FITTING GLOBAL MODEL]")
     df_base = get_base_data(df_clean)
-    df_base_f, valid_models_b = justify_and_filter_N(df_base, min_comparisons=100)
+    df_base_f, valid_models_b = justify_and_filter_N(df_base, min_comparisons=100, regime_name="Global")
     W_base = build_wins_matrix(df_base_f, valid_models_b)
     
     beta_global = fit_bt_mm(W_base)
-    print("\nTop 10 Global Models (beta params):")
-    print(beta_global.head(10))
+    se_global = get_bt_standard_errors(W_base, beta_global)
+    print("\nTop 10 Global Models (beta params +/- 1.96*SE):")
+    for m in beta_global.head(10).index:
+        print(f"{m:30} {beta_global[m]:8.4f}  (+/- {se_global[m]*1.96:.4f})")
     
     print("\n[FITTING CREATIVITY MODEL]")
     df_creative = get_creative_data(df_clean)
-    df_creative_f, valid_models_c = justify_and_filter_N(df_creative, min_comparisons=20)
+    df_creative_f, valid_models_c = justify_and_filter_N(df_creative, min_comparisons=20, regime_name="Creative")
     W_creative = build_wins_matrix(df_creative_f, valid_models_c)
     
     beta_creative = fit_bt_mm(W_creative)
-    print("\nTop 10 Creativity Models (beta params):")
-    print(beta_creative.head(10))
+    se_creative = get_bt_standard_errors(W_creative, beta_creative)
+    print("\nTop 10 Creativity Models (beta params +/- 1.96*SE):")
+    for m in beta_creative.head(10).index:
+        print(f"{m:30} {beta_creative[m]:8.4f}  (+/- {se_creative[m]*1.96:.4f})")
     
     plot_rank_comparison(beta_global, beta_creative)
+    plot_top_models_bar(beta_global, se_global, beta_creative, se_creative)
+    plot_beta_shift_movers(beta_global, se_global, beta_creative, se_creative)
