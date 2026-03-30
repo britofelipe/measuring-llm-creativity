@@ -2,11 +2,43 @@ import pandas as pd
 import numpy as np
 from scipy import stats
 from sklearn.linear_model import LogisticRegression
+import requests
+import io
+import os
+import time
+
+def download_parquet(url, cache_path, retries=3, chunk_size=1024*1024):
+    """Download a parquet file with chunked streaming and retry logic."""
+    if os.path.exists(cache_path):
+        print(f"[cache] Loading {cache_path}")
+        return pd.read_parquet(cache_path)
+    for attempt in range(1, retries + 1):
+        try:
+            print(f"[download] Attempt {attempt}/{retries}: {url}")
+            resp = requests.get(url, stream=True, timeout=60)
+            resp.raise_for_status()
+            buf = io.BytesIO()
+            for chunk in resp.iter_content(chunk_size=chunk_size):
+                if chunk:
+                    buf.write(chunk)
+            buf.seek(0)
+            df = pd.read_parquet(buf)
+            df.to_parquet(cache_path)
+            print(f"[download] Saved to {cache_path}")
+            return df
+        except Exception as e:
+            print(f"[download] Error on attempt {attempt}: {e}")
+            if attempt < retries:
+                time.sleep(3)
+    raise RuntimeError(f"Failed to download {url} after {retries} attempts")
 
 def exercise_3_1():
     print("=== EXERCICE 3.1: Biais de longueur ===\n")
     # Charger le dataset de votes
-    df_votes = pd.read_parquet("https://object.data.gouv.fr/ministere-culture/COMPARIA/votes.parquet")
+    df_votes = download_parquet(
+        "https://object.data.gouv.fr/ministere-culture/COMPARIA/votes.parquet",
+        "cache_votes.parquet"
+    )
     
     # Calculer la différence de longueur : on utilise len() sur conversation_a si les tokens manquent
     if 'total_conv_a_output_tokens' in df_votes.columns:
@@ -110,7 +142,10 @@ def exercise_3_1():
 
 def exercise_3_2():
     print("\n\n=== EXERCICE 3.2: Biais de position A/B ===\n")
-    df_react = pd.read_parquet("https://object.data.gouv.fr/ministere-culture/COMPARIA/reactions.parquet")
+    df_react = download_parquet(
+        "https://object.data.gouv.fr/ministere-culture/COMPARIA/reactions.parquet",
+        "cache_reactions.parquet"
+    )
     
     # Qualificatifs cibles
     cols = ['creative', 'useful', 'incorrect']
@@ -137,8 +172,8 @@ def exercise_3_2():
             
             # Taux de positivité (True / True+False)
             if True in tab.columns:
-                rate_a = tab.loc['A', True] / tab.loc['A'].sum() if 'A' in tab.index else 0
-                rate_b = tab.loc['B', True] / tab.loc['B'].sum() if 'B' in tab.index else 0
+                rate_a = tab.loc['a', True] / tab.loc['a'].sum() if 'a' in tab.index else 0
+                rate_b = tab.loc['b', True] / tab.loc['b'].sum() if 'b' in tab.index else 0
                 print(f"Taux pour A : {rate_a:.2%} | Taux pour B : {rate_b:.2%}")
                 diff = rate_a - rate_b
                 print(f"Différence absolue : {diff:.2%} (avantage pour {'A' if diff > 0 else 'B'})")
