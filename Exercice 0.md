@@ -2,11 +2,11 @@
 
 # Exercice 0 — Justification théorique des métriques
 
-## 1. Positionnement général
+## 1. Introduction
 
 Il existe trois dimensions théoriques de la créativité computationnelle : **nouveauté**, **valeur** et **surprise**. La nouveauté renvoie à la distance par rapport aux conventions et au corpus d’entraînement ; la valeur à la pertinence, la cohérence et l’utilité ; la surprise au caractère inattendu mais rétrospectivement justifié de la réponse. Le **Creativity Index (CI)** doit ensuite agréger ces dimensions et être validé par corrélation avec le **compar:IA Creative Score** (`creative`, `conv_creative_a`, `conv_creative_b`).
 
-Dans notre cas, le choix des métriques est contraint par les données effectivement disponibles dans compar:IA. Nous disposons du **texte de la question**, du **texte de la réponse**, parfois du **system prompt**, ainsi que des **annotations humaines**. En revanche, nous ne disposons ni des **logits** ni des **probabilités token par token** du modèle générateur. Nous avons donc retenu uniquement des métriques **calculables à partir du texte** ou à l’aide de ressources externes légères (modèle d’embeddings, corpus de référence, LLM juge), mais pas des métriques nécessitant un accès interne au modèle, comme l’entropie de prédiction ou la surprise moyenne probabiliste.
+Dans notre cas, le choix des métriques est contraint par les données effectivement disponibles dans compar:IA. Nous disposons du **texte de la question**, du **texte de la réponse**, parfois du **system prompt**, ainsi que des **annotations humaines**. En revanche, nous ne disposons ni des **logits** ni des **probabilités token par token** du modèle générateur. Nous avons donc retenu uniquement des métriques **calculables à partir du texte** ou à l’aide de ressources externes légères (modèle d’embeddings, corpus de référence), mais pas des métriques nécessitant un accès interne au modèle, comme l’entropie de prédiction ou la surprise moyenne probabiliste.
 
 Le dataset le plus adapté pour un calcul **au niveau message** est **`comparia-reactions`**, car il contient directement les colonnes `question_content`, `response_content`, `system_prompt` et `creative`. Les datasets `comparia-votes` et `comparia-conversations` seront surtout utiles pour une validation complémentaire au niveau conversationnel.
 
@@ -41,7 +41,7 @@ Nous retenons les métriques suivantes :
 - **Ressource externe requise** :
   - corpus de référence externe.
 - **Implémentation retenue** :
-  - dans la version 0, nous utilisons une **référence externe Wikipedia FR** sous forme de table de fréquences de bigrammes pré-calculée et sérialisée.
+  - dans une prémière version, nous utilisons une **référence externe Wikipedia FR** sous forme de table de fréquences de bigrammes pré-calculée et sérialisée.
 - **Remarque** :
   - cette solution est plus stable que l’usage du seul échantillon compar:IA comme baseline empirique, qui rendait la métrique trop circulaire et peu discriminante.
 
@@ -54,7 +54,7 @@ Nous retenons les métriques suivantes :
 - **Ressource externe requise** :
   - modèle d’embeddings.
 - **Implémentation retenue** :
-  - dans la version 0, nous calculons la **distance de la réponse au centroïde sémantique des réponses** du corpus analysé.
+  - dans une prémière version, nous calculons la **distance de la réponse au centroïde sémantique des réponses** du corpus analysé.
 
 **Résumé pour la dimension nouveauté** :  
 Nous utilisons **MATTR**, **Distinct-n**, **N-gram Rarity Score** et **distance sémantique au centroïde**. Ces métriques couvrent la diversité lexicale, la diversité combinatoire et une première approximation de l’originalité sémantique.
@@ -93,20 +93,9 @@ Nous retenons les métriques suivantes :
 - **Implémentation retenue** :
   - nous calculons la **similarité cosinus moyenne entre phrases successives** ; une chute brutale signale une rupture discursive ou une instabilité narrative.
 
-#### d) LLM-as-a-judge pour la pertinence et la cohérence globale
-- **Ce que la métrique mesure** : une évaluation automatique, par un modèle juge, de la pertinence au prompt, de la cohérence globale, de l’utilité et éventuellement de la qualité rédactionnelle.
-- **Pourquoi elle est pertinente** : certaines composantes de la valeur sont difficilement réductibles à une seule mesure purement lexicale.
-- **Colonnes utilisées** :
-  - `comparia-reactions.question_content`
-  - `comparia-reactions.response_content`
-  - `comparia-reactions.system_prompt` (facultatif)
-- **Statut dans la version 0** :
-  - l’interface logicielle a été préparée, mais le **LLM judge n’a pas encore été intégré** dans le calcul effectif du CI.
-- **Conséquence** :
-  - cette métrique n’entre pas encore dans l’agrégation numérique du score provisoire.
 
 **Résumé pour la dimension valeur** :  
-Dans la version 0, les métriques effectivement calculées sont **BERTScore**, **ROUGE-L** et **cohérence locale**. Le **LLM judge** reste prévu mais non activé à ce stade.
+Les métriques calculées sont **BERTScore**, **ROUGE-L** et **cohérence locale**. 
 
 ---
 
@@ -142,15 +131,6 @@ Nous retenons les métriques suivantes :
 - **Implémentation retenue** :
   - nous recherchons les **k plus proches voisins dans l’espace des questions**, puis nous calculons la distance moyenne entre la réponse courante et les réponses associées à ces voisins.
 
-#### c) LLM-as-a-judge pour « inattendu mais justifié »
-- **Ce que la métrique mesure** : une note donnée par un modèle juge à la dimension suivante : *la réponse propose-t-elle une idée inhabituelle, mais défendable a posteriori ?*
-- **Pourquoi elle est pertinente** : cette formulation est très proche de la définition théorique de la surprise retenue dans le document.
-- **Colonnes utilisées** :
-  - `comparia-reactions.question_content`
-  - `comparia-reactions.response_content`
-  - `comparia-reactions.system_prompt` (facultatif)
-- **Statut dans la version 0** :
-  - prévu, mais **non encore implémenté** dans le score effectif.
 
 #### d) Divergent Thinking Score
 - **Ce que la métrique mesure** : le nombre d’idées distinctes, de pistes de réponse différentes ou de métaphores non conventionnelles présentes dans une même réponse.
@@ -163,7 +143,7 @@ Nous retenons les métriques suivantes :
   - détecter les idées distinctes par clustering sémantique ;
   - repérer des associations non conventionnelles ;
   - calculer en complément une **variance de l’inattendu**.
-- **Implémentation retenue dans la version 0** :
+- **Implémentation retenue** :
   - segmentation de la réponse en phrases ;
   - embeddings de phrases ;
   - clustering agglomératif des phrases ;
@@ -180,7 +160,7 @@ Nous retenons les métriques suivantes :
   - cette quantité est calculée comme **métrique autonome** et également mobilisée dans le Divergent Thinking Score.
 
 **Résumé pour la dimension surprise** :  
-Dans la version 0, les métriques effectivement calculées sont **distance prompt-réponse**, **distance aux voisins du corpus**, **Divergent Thinking Score** et **variance de l’inattendu**. Le **LLM judge** de surprise reste prévu mais non activé.
+Les métriques calculées sont **distance prompt-réponse**, **distance aux voisins du corpus**, **Divergent Thinking Score** et **variance de l’inattendu**.
 
 ---
 
@@ -212,9 +192,7 @@ Ce dataset constitue la base principale du calcul du Creativity Index, car il fo
 
 ---
 
-## 4. Métriques effectivement calculées dans la version 0
-
-À ce stade du projet, les métriques suivantes sont **effectivement calculées** dans le pipeline :
+## 4. Métriques calculées
 
 ### Nouveauté
 - `novelty_mattr`
@@ -234,13 +212,8 @@ Ce dataset constitue la base principale du calcul du Creativity Index, car il fo
 - `surprise_unexpected_variance`
 - `surprise_divergent_score`
 
-### Métriques préparées mais non activées
-- `judge_value_relevance`
-- `judge_value_global_coherence`
-- `judge_value_utility`
-- `judge_surprise_unexpected_but_justified`
 
-Le **Creativity Index version 0** est donc calculé **sans les métriques LLM judge**.
+Le **Creativity Index** est donc calculé à partir de ces métriques.
 
 ---
 
@@ -255,16 +228,14 @@ Le **Creativity Index version 0** est donc calculé **sans les métriques LLM ju
 | Valeur | BERTScore | Pertinence sémantique fine par rapport au prompt | `question_content`, `response_content` | Calculée |
 | Valeur | ROUGE-L | Respect lexical / structurel de la consigne | `question_content`, `response_content` | Calculée |
 | Valeur | Cohérence locale | Continuité entre phrases | `response_content` | Calculée |
-| Valeur | LLM juge | Pertinence, cohérence globale, utilité | `question_content`, `response_content`, `system_prompt` | Préparée, non activée |
 | Surprise | Distance prompt-réponse contrôlée | Déviation sémantique inattendue mais liée au prompt | `question_content`, `response_content` | Calculée |
 | Surprise | Distance aux voisins du corpus | Écart à des réponses typiques pour prompts proches | `question_content`, `response_content`, `question_id` | Calculée |
-| Surprise | LLM juge “inattendu mais justifié” | Surprise interprétable et rétrospectivement plausible | `question_content`, `response_content`, `system_prompt` | Préparée, non activée |
 | Surprise | Divergent Thinking Score | Multiplicité d’idées distinctes et variation sémantique | `response_content`, éventuellement `question_content` | Calculée |
 | Surprise | Variance de l’inattendu | Variabilité des similarités entre phrases | `response_content` | Calculée |
 
 ---
 
-## 6. Construction du Creativity Index version 0
+## 6. Construction du Creativity Index
 
 ### 6.1 Normalisation des métriques
 
@@ -299,7 +270,7 @@ Exemples :
 
 ### 6.2 Pondération initiale
 
-Dans la version 0, nous avons choisi une stratégie volontairement simple :
+Nous avons choisi une stratégie simple :
 
 - **un poids par métrique**
 - **tous les poids initialement égaux**
@@ -415,11 +386,11 @@ Nous conservons également les coefficients appris dans un tableau séparé, afi
 
 ---
 
-## 8. Conclusion provisoire
+## 8. Récapitulation
 
 Cette première sélection de métriques vise à construire un **Creativity Index textuel, calculable et optimisable** à partir des données réellement disponibles dans compar:IA.
 
-La version 0 du projet comprend désormais :
+Le projet comprend :
 - un ensemble de **métriques textuelles et sémantiques effectivement calculées** ;
 - une **normalisation robuste** de ces métriques ;
 - un **score provisoire** obtenu par somme pondérée à poids égaux ;
@@ -431,3 +402,124 @@ Les prochaines étapes consisteront à :
 3. analyser les effets de longueur et les biais éventuels ;
 4. comparer le score provisoire et le score appris ;
 5. valider ensuite le CI sur d’autres sous-ensembles, puis au niveau conversationnel avec `conv_creative_*`.
+
+---
+
+## 9. Famille D — Métriques agrégées et composées
+
+### 9.1 Dimension théorique opérationnalisée
+
+La famille des métriques agrégées opérationnalise la créativité comme une **propriété émergente multi-dimensionnelle** : une réponse est jugée créative si elle combine simultanément :
+- de la nouveauté (distance aux formulations banales),
+- de la valeur (pertinence/cohérence),
+- de la surprise (inattendu interprétable).
+
+Le rôle des métriques agrégées est donc d’**intégrer** ces signaux partiels dans un score unique. Puis il faut vérifier que ce score est bien aligné avec le signal humain compar:IA (`creative` au niveau message, `conv_creative_*` au niveau conversation).
+
+### 9.2 Protocole expérimental implémenté
+
+Le pipeline actuel implémente deux agrégats.
+
+#### a) Agrégat manuel : `creativity_index_provisional`
+- normalisation robuste de chaque métrique : robust z-score (médiane/IQR) puis sigmoïde ;
+- agrégation par moyenne pondérée ligne à ligne ;
+- pondération initiale uniforme sur toutes les métriques disponibles ;
+- seuil binaire provisoire : `0.5`.
+
+Ce protocole est codé dans `scoring.py` (`normalize_metric`, `weighted_row_mean`, `add_provisional_creativity_index`).
+
+#### b) Agrégat appris : `creativity_index_logreg`
+- variables explicatives : toutes les colonnes normalisées ;
+- cible : `creative` (binaire) ;
+- split `train/test` stratifié (`test_size = 0.2`) ;
+- modèle : `LogisticRegression` avec `class_weight="balanced"` ;
+- seuil de décision : **variable** (mode `train_f1`) ; le seuil retenu sur ce run est `0.565`.
+
+Ce protocole est codé dans `optimization.py` (`prepare_training_data`, `train_creativity_logistic_regression`).
+
+### 9.3 Résultats observés (`outputs_logreg2`)
+
+Sur l’ensemble scoré (niveau message), on observe :
+
+| Score agrégé | n | TP | TN | FP | FN | Accuracy | Precision | Recall | F1 | Spearman vs `creative` |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| `creativity_index_provisional` | 2000 | 99 | 821 | 1041 | 39 | 0.460 | 0.0868 | 0.717 | 0.155 | 0.077 |
+| `creativity_index_logreg` | 1914 | 64 | 1359 | 423 | 68 | 0.743 | 0.131 | 0.485 | 0.207 | 0.162 |
+
+Le passage à la régression logistique améliore les performances globales (accuracy `0.46 -> 0.74`, F1 `0.155 -> 0.207`, Spearman `0.077 -> 0.162`) ;
+- le score provisoire sur-prédit fortement la classe créative (`1140` prédictions positives pour seulement `138` positifs réels) ;
+- le score logistique réduit nettement les faux positifs (`1041 -> 423`), mais au prix d’une baisse du rappel (`0.717 -> 0.485`).
+- l’écart `n=2000` vs `n=1914` vient des lignes incomplètes sur certaines métriques (notamment celles basées sur segmentation en phrases).
+
+Résultats `train/test` (`logreg_train_test_metrics.csv`) :
+- train : AUC `0.689`, F1 `0.221` ;
+- test : AUC `0.664`, F1 `0.154` ;
+- seuil appris : `0.565` (`threshold_mode = train_f1`).
+
+Interprétation :
+- le problème reste fortement déséquilibré (environ `6.9%` de positifs `creative`) ;
+- l’optimisation du seuil améliore la calibration par rapport à un `0.5` arbitraire ;
+- le modèle apporte un gain net vs score provisoire, mais la séparation créatif/non-créatif demeure modérée (AUC test ~ `0.66`).
+
+### 9.4 Pondération justifiée pour le CI (à partir des coefficients appris)
+
+Les coefficients logistiques les plus élevés sont :
+- `novelty_ngram_rarity_norm` (`+1.364`),
+- `novelty_distinct_n_norm` (`+1.233`),
+- `surprise_prompt_response_distance_norm` (`+0.949`),
+- `value_local_coherence_norm` (`+0.841`),
+- `surprise_distance_to_neighbors_norm` (`+0.812`).
+
+Les coefficients négatifs les plus marqués sont :
+- `value_rouge_l_prompt_response_norm` (`-1.470`),
+- `novelty_semantic_distance_centroid_norm` (`-1.082`),
+- `surprise_unexpected_variance_norm` (`-0.135`).
+
+En agrégeant la **magnitude** des coefficients (`|beta|`) par famille :
+- nouveauté : `39.6%`,
+- valeur : `27.4%`,
+- surprise : `33.0%`.
+
+Une pondération de famille cohérente avec ces résultats est donc :
+
+\[
+\alpha_{\text{nouveauté}} = 0.40,\quad
+\beta_{\text{valeur}} = 0.27,\quad
+\gamma_{\text{surprise}} = 0.33,\quad
+\alpha+\beta+\gamma=1
+\]
+
+et, au niveau métrique, une pondération interne proportionnelle à `|beta_k|` :
+
+\[
+w_k = \frac{|\beta_k|}{\sum_j |\beta_j|}
+\]
+
+Cette règle garde la simplicité du CI tout en remplaçant les poids arbitraires par une estimation empirique.
+
+### 9.5 Cas d’échec identifiés (faux positifs / faux négatifs)
+
+Cas d’échec plausibles de la famille D dans ce pipeline :
+- **Faux positifs (FP)** : réponses très divergentes lexicalement/sémantiquement, riches en idées distinctes, mais jugées peu créatives par l’humain (hors-sujet, verbeuses, gimmicks stylistiques).
+- **Faux positifs (FP)** : réponses “surprenantes” qui ressemblent à de l’instabilité discursive ; la surprise est captée, mais la valeur perçue ne suit pas.
+- **Faux négatifs (FN)** : réponses créatives mais concises/sobres, avec faible divergence de surface et fort recouvrement lexical du prompt (potentiellement pénalisées par la combinaison des poids appris).
+- **Faux négatifs (FN)** : créativité contextuelle ou culturelle subtile (jeu de mots, référence implicite) insuffisamment visible via embeddings génériques.
+
+Analyse rapide à partir de `failure_cases_report.md` :
+- Sur les `1914` lignes éligibles, on observe `423` FP contre `68` FN ; l’erreur dominante reste donc la sur-prédiction de la créativité.
+- Les FP les plus probables (ex. `id=308403`, `id=317475`) sont des réponses courtes ou de suivi conversationnel, avec forte rareté n-gramme et distance sémantique, mais sans signal humain de créativité.
+- Cette forte rareté n-gramme peut provenir d’éléments de style ou de contexte (termes spécifiques, formulations rares), sans garantir une créativité perçue par l’annotateur.
+- Les FN inspectés (ex. `id=264392`, `id=336716`) montrent l’effet inverse : réponses jugées créatives par l’humain mais pénalisées par de fortes contributions négatives de `value_rouge_l_prompt_response_norm` et `novelty_semantic_distance_centroid_norm`.
+- Dans `id=336716` (menu Dragon Ball), des termes d’univers et jeux d’associations (“Capsules de Shenron”, “Ki”, etc.) augmentent la rareté n-gramme, mais la structure très guidée de menu/recette peut réduire d’autres signaux.
+- Dans `id=264392` (naming entreprise écologique), la proposition de noms composés/néologiques (`EcoRénov`, `RénoVert`, `Rénov'Eco`) crée aussi de la rareté lexicale, mais cela n’est pas toujours converti en score créatif final selon les autres coefficients.
+- Ces cas confirment que le modèle capte bien l’originalité formelle, mais sous-capte encore la créativité “utile et contextuelle”.
+
+### 9.6 Validation compar:IA Creative Score et limites actuelles
+
+Validation message-level effectuée :
+- score provisoire : Spearman `0.077`.
+- score logistique : Spearman `0.162`.
+
+Validation encore incomplète au regard de la consigne famille D :
+- corrélation conversationnelle avec `conv_creative_a` / `conv_creative_b` : à faire (nécessite agrégation au niveau `comparia-votes`).
+- **Creativity-Coherence Frontier** : à produire (frontière Pareto `novelty_score` vs `value_score`) pour visualiser le compromis originalité/cohérence entre modèles.

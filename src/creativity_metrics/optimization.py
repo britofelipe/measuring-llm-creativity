@@ -22,6 +22,7 @@ class OptimizationResult:
     coefficients: Dict[str, float]
     intercept: float
     threshold: float
+    threshold_mode: str
     train_metrics: Dict[str, float]
     test_metrics: Dict[str, float]
 
@@ -71,12 +72,46 @@ def evaluate_predictions(y_true: pd.Series, y_prob: np.ndarray, threshold: float
     return metrics
 
 
+def select_threshold(
+    y_true: pd.Series,
+    y_prob: np.ndarray,
+    mode: str = "fixed",
+    fixed_threshold: float = 0.5,
+    grid_size: int = 181,
+) -> float:
+    if mode == "fixed":
+        return float(fixed_threshold)
+
+    if mode != "train_f1":
+        raise ValueError(f"Mode de threshold non supporte: {mode}")
+
+    if grid_size < 3:
+        raise ValueError("grid_size doit etre >= 3")
+
+    y_true_np = np.asarray(y_true).astype(int)
+    best_threshold = float(fixed_threshold)
+    best_f1 = -1.0
+    candidate_thresholds = np.linspace(0.05, 0.95, grid_size)
+
+    for t in candidate_thresholds:
+        y_pred = (y_prob >= t).astype(int)
+        score = f1_score(y_true_np, y_pred, zero_division=0)
+        # Tie-break: prefer threshold closer to 0.5 for stability.
+        if score > best_f1 or (score == best_f1 and abs(t - 0.5) < abs(best_threshold - 0.5)):
+            best_f1 = score
+            best_threshold = float(t)
+
+    return best_threshold
+
+
 def train_creativity_logistic_regression(
     df: pd.DataFrame,
     target_col: str = "creative",
     test_size: float = 0.2,
     random_state: int = 42,
     threshold: float = 0.5,
+    threshold_mode: str = "fixed",
+    threshold_grid_size: int = 181,
     class_weight: str | None = "balanced",
     max_iter: int = 1000,
 ) -> Tuple[pd.DataFrame, OptimizationResult]:
@@ -102,8 +137,16 @@ def train_creativity_logistic_regression(
     train_prob = model.predict_proba(X_train)[:, 1]
     test_prob = model.predict_proba(X_test)[:, 1]
 
-    train_metrics = evaluate_predictions(y_train, train_prob, threshold=threshold)
-    test_metrics = evaluate_predictions(y_test, test_prob, threshold=threshold)
+    effective_threshold = select_threshold(
+        y_true=y_train,
+        y_prob=train_prob,
+        mode=threshold_mode,
+        fixed_threshold=threshold,
+        grid_size=threshold_grid_size,
+    )
+
+    train_metrics = evaluate_predictions(y_train, train_prob, threshold=effective_threshold)
+    test_metrics = evaluate_predictions(y_test, test_prob, threshold=effective_threshold)
 
     coefficients = {
         feature: float(coef)
@@ -114,7 +157,8 @@ def train_creativity_logistic_regression(
         feature_names=feature_cols,
         coefficients=coefficients,
         intercept=float(model.intercept_[0]),
-        threshold=threshold,
+        threshold=effective_threshold,
+        threshold_mode=threshold_mode,
         train_metrics=train_metrics,
         test_metrics=test_metrics,
     )
@@ -131,7 +175,7 @@ def train_creativity_logistic_regression(
     if valid_mask.sum() > 0:
         full_prob = model.predict_proba(scored_df.loc[valid_mask, feature_cols])[:, 1]
         full_pred = pd.Series(
-            full_prob >= threshold,
+            full_prob >= effective_threshold,
             index=scored_df.index[valid_mask],
             dtype="boolean",
         )
@@ -148,7 +192,12 @@ def optimization_result_to_tables(result: OptimizationResult) -> Tuple[pd.DataFr
 
     metrics_rows = []
     for split_name, metrics in [("train", result.train_metrics), ("test", result.test_metrics)]:
-        row = {"split": split_name, "threshold": result.threshold, "intercept": result.intercept}
+        row = {
+            "split": split_name,
+            "threshold": result.threshold,
+            "threshold_mode": result.threshold_mode,
+            "intercept": result.intercept,
+        }
         row.update(metrics)
         metrics_rows.append(row)
 

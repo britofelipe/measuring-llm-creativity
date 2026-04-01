@@ -23,7 +23,6 @@ Projet Python modulaire pour :
 - `src/creativity_metrics/metrics_novelty.py` : métriques de nouveauté
 - `src/creativity_metrics/metrics_value.py` : métriques de valeur
 - `src/creativity_metrics/metrics_surprise.py` : métriques de surprise
-- `src/creativity_metrics/llm_judge.py` : interface facultative pour un LLM juge
 - `src/creativity_metrics/pipeline.py` : pipeline principal de calcul
 - `src/creativity_metrics/analysis.py` : résumés et corrélations
 - `scripts/run_pipeline.py` : exécution de bout en bout

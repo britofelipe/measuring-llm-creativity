@@ -38,6 +38,8 @@ def main() -> None:
     parser.add_argument("--optimize-logreg", action="store_true")
     parser.add_argument("--test-size", type=float, default=0.2)
     parser.add_argument("--threshold", type=float, default=0.5)
+    parser.add_argument("--threshold-mode", type=str, default="fixed", choices=["fixed", "train_f1"])
+    parser.add_argument("--threshold-grid-size", type=int, default=181)
     args = parser.parse_args()
 
     pipeline_config = PipelineConfig(
@@ -73,6 +75,7 @@ def main() -> None:
     logreg_eval = None
     logreg_coef = None
     logreg_metrics = None
+    logreg_threshold = args.threshold
 
     if args.optimize_logreg:
         df_scores, opt_result = train_creativity_logistic_regression(
@@ -80,13 +83,16 @@ def main() -> None:
             target_col="creative",
             test_size=args.test_size,
             threshold=args.threshold,
+            threshold_mode=args.threshold_mode,
+            threshold_grid_size=args.threshold_grid_size,
         )
         logreg_coef, logreg_metrics = optimization_result_to_tables(opt_result)
+        logreg_threshold = opt_result.threshold
 
         logreg_eval = evaluate_score_against_creative(
             df_scores,
             score_col="creativity_index_logreg",
-            threshold=args.threshold,
+            threshold=logreg_threshold,
         )
 
     output_dir = Path(args.output_dir)
@@ -96,7 +102,7 @@ def main() -> None:
     summary = summarize_metrics(df_scores)
     corr = correlations_with_human_labels(df_scores)
     comparison = compare_creative_vs_noncreative(df_scores)
-    provisional_eval = evaluate_provisional_index(df_scores, threshold=0.5)
+    provisional_eval = evaluate_provisional_index(df_scores, threshold=args.threshold)
 
     save_analysis_tables(
         output_dir,
