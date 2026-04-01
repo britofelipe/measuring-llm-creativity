@@ -4,6 +4,9 @@ numpy
 scipy
 scikit-learn
 sentence-transformers
-bert-score
+bert-score==0.3.13
+transformers>=4.40,<5
+protobuf>=4.25
 rouge-score
 tqdm
+datasets

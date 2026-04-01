@@ -5,6 +5,17 @@ Projet Python modulaire pour :
 - calculer les métriques proposées pour **nouveauté**, **valeur** et **surprise**
 - produire des tableaux de synthèse, corrélations simples et comparaisons avec les annotations humaines (`creative`, `useful`, etc.)
 
+## État d'avancement
+
+- **Pipeline v0 opérationnel** sur `comparia-reactions` avec calcul des métriques de nouveauté, valeur et surprise.
+- **Creativity Index v0 implémenté** : normalisation robuste + agrégation pondérée (poids initiaux égaux).
+- **Optimisation supervisée ajoutée** : régression logistique (`creative`) pour apprendre des poids empiriques.
+- **Résultat Ex.3.1 (biais de longueur, `comparia-votes`)** : ρ Spearman = `0.1237` (p `< 2e-16`) ; coefficient BT `+0.1428`.
+- **Résultat Ex.3.2 (biais de position, `comparia-reactions`)** : avantage position B pour `liked` (p `= 0.003`), `useful` (p `= 2.48e-06`) et `creative` (p `= 0.019`) ; non significatif pour `incorrect` (p `= 0.319`).
+- **Résultat Ex.1.1 (IAA, `comparia-reactions`)** : κ de Cohen (`creative`) = 0,25 (stricte) / 0,05 (proxy) → fiabilité faible à modérée.
+- **Résultat Ex.1.3 (Krippendorff, `comparia-reactions`)** : α (`creative`) = 0,185 (stricte) / 0,114 (proxy) → en dessous du seuil de fiabilité (0,67).
+
+
 ## Structure
 
 - `src/creativity_metrics/config.py` : configuration globale
@@ -14,19 +25,12 @@ Projet Python modulaire pour :
 - `src/creativity_metrics/metrics_novelty.py` : métriques de nouveauté
 - `src/creativity_metrics/metrics_value.py` : métriques de valeur
 - `src/creativity_metrics/metrics_surprise.py` : métriques de surprise
-- `src/creativity_metrics/llm_judge.py` : interface facultative pour un LLM juge
 - `src/creativity_metrics/pipeline.py` : pipeline principal de calcul
 - `src/creativity_metrics/analysis.py` : résumés et corrélations
 - `scripts/run_pipeline.py` : exécution de bout en bout
 - `scripts/question1_fiabilite.py` : **Question 1 — Fiabilité des jugements humains**
 
 ## Installation conseillée
-
-```bash
-pip install -r requirements.txt
-```
-
-Ou manuellement :
 
 ```bash
 pip install pandas pyarrow numpy scipy scikit-learn sentence-transformers bert-score rouge-score tqdm datasets krippendorff matplotlib seaborn huggingface_hub statsmodels
@@ -57,17 +61,21 @@ python scripts/run_pipeline.py \
   --output-dir outputs
 ```
 
-### Question 1 — Fiabilité des jugements humains
-
-```bash
-python scripts/question1_fiabilite.py --output-dir outputs/question1
+To generate the N-gram reference from wikipedia:
+````
+python scripts/build_ngram_reference.py \
+  --dataset-name kaitchup/wikipedia-20220301-fr-sample-10k \
+  --split train \
+  --text-col text \
+  --ngram-n 2 \
+  --output-path resources/wikipedia_fr_sample_bigram_counts.pkl
 ```
-
-## Remarques
-
-- Les métriques utilisant des embeddings exigent un modèle `sentence-transformers`.
-- Les métriques `LLM judge` sont optionnelles. Le projet inclut une interface/stub propre, mais **ne lance pas automatiquement d'appel API**.
-- Le `N-gram Rarity Score` est calculé ici par défaut **sur le corpus compar:IA lui-même** (baseline empirique). Vous pourrez remplacer cette baseline plus tard par un corpus externe.
+```
+python scripts/run_pipeline.py \
+  --sample-size 50 \
+  --rarity-reference-path resources/wikipedia_fr_sample_bigram_counts.pkl \
+  --output-dir outputs_wiki_ref
+```
 
 ---
 
@@ -95,3 +103,19 @@ python scripts/question1_fiabilite.py --output-dir outputs/question1
 ```
 Les graphiques et résultats sont sauvegardés dans `outputs/question1/`.
 
+---
+
+### Question 2 : Modèle Bradley-Terry (compar:IA)
+
+Analyse complète du classement des LLM par préférences humaines via le modèle de Bradley-Terry.
+
+#### Notebook Principal
+- [exercise_2_combined.ipynb](file:///Users/felipebrito/Workspace/measuring-llm-creativity/src/bradley-terry/exercise_2_combined.ipynb) : Contient l'intégralité des analyses (Exercices 2.1, 2.2 et 2.3).
+  - **2.1** : Modèle global vs créativité, intervalles de confiance par bootstrap.
+  - **2.2** : Transitivité stochastique, analyse de puissance, extension Davidson pour les ex-æquo.
+  - **2.3** : Modèles à covariables (Output length, turns, categories) et GLMM.
+
+#### Utilisation
+1. Ouvrez le notebook `exercise_2_combined.ipynb` dans VS Code ou Jupyter.
+2. Assurez-vous d'avoir les dépendances installées (`statsmodels`, `datasets`, etc.).
+3. Les graphiques et résultats sont automatiquement sauvegardés dans le dossier `results/`.

@@ -18,6 +18,21 @@ def rouge_l_recall(prompt: str, response: str) -> float:
 
 
 def bertscore_f1_batch(prompts: List[str], responses: List[str], lang: str = "fr") -> np.ndarray:
+    if len(prompts) != len(responses):
+        raise ValueError("prompts et responses doivent avoir la meme longueur.")
+
+    prompts_clean = ["" if p is None else str(p).strip() for p in prompts]
+    responses_clean = ["" if r is None else str(r).strip() for r in responses]
+
+    valid_idx = [
+        i for i, (p, r) in enumerate(zip(prompts_clean, responses_clean))
+        if p and r
+    ]
+
+    # Evite les crashs de bert-score sur chaines vides.
+    if not valid_idx:
+        return np.full(len(prompts), np.nan, dtype=float)
+
     try:
         from bert_score import score as bert_score
     except ImportError as e:
@@ -25,14 +40,21 @@ def bertscore_f1_batch(prompts: List[str], responses: List[str], lang: str = "fr
             "bert-score est requis pour BERTScore. Installez-le avec `pip install bert-score`."
         ) from e
 
+    valid_prompts = [prompts_clean[i] for i in valid_idx]
+    valid_responses = [responses_clean[i] for i in valid_idx]
+
     _, _, f1 = bert_score(
-        cands=responses,
-        refs=prompts,
+        cands=valid_responses,
+        refs=valid_prompts,
         lang=lang,
         verbose=False,
         rescale_with_baseline=True,
+        use_fast_tokenizer=False,
     )
-    return f1.detach().cpu().numpy()
+
+    scores = np.full(len(prompts), np.nan, dtype=float)
+    scores[np.array(valid_idx)] = f1.detach().cpu().numpy()
+    return scores
 
 
 def local_coherence_from_sentence_embeddings(sentence_vectors: np.ndarray) -> float:
