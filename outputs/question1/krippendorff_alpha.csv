@@ -1,0 +1,7 @@
+Label,Alpha_Krippendorff,N_annotateurs,N_items,Seuil_min_annotateurs,Completude_matrice,Approche
+creative,0.1853,51,14,3,0.0826,stricte_response_content
+useful,0.1407,51,14,3,0.0826,stricte_response_content
+incorrect,-0.0175,51,14,3,0.0826,stricte_response_content
+creative,0.1142,571,176,3,0.0092,proxy_question_content
+useful,0.0595,571,176,3,0.0092,proxy_question_content
+incorrect,0.0857,571,176,3,0.0092,proxy_question_content

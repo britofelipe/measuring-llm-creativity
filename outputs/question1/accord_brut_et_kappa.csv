@@ -1,0 +1,7 @@
+Label,N_paires,Taux_accord_brut,Kappa_Cohen,Prevalence_label,Approche,N_items
+creative,150,0.8133,0.2524,0.1103,stricte_response_content,57
+useful,150,0.8533,0.0782,0.1103,stricte_response_content,57
+complete,150,0.7733,0.0601,0.1172,stricte_response_content,57
+creative,6589,0.9496,0.0519,0.0588,proxy_question_content,778
+useful,6589,0.7815,0.0129,0.1415,proxy_question_content,778
+complete,6589,0.7777,0.039,0.1396,proxy_question_content,778
