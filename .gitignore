@@ -5,8 +5,9 @@ __pycache__/
 
 
 # Folders
-outputs/
+outputs*/
 venv_*/
+resources/
 
 # macOS
 *.DS_Store

@@ -1,0 +1,73 @@
+=== EXERCICE 3.1: Biais de longueur ===
+
+[152842 matchs analysÚs]
+CorrÚlation de Spearman (length_diff, vote_A): 0.1237 (p-value: 0.00e+00)
+
+PrÚparation du modÞle Bradley-Terry (RÚgression logistique)...
+
+Classement BT (Top 5) AVANT correction longueur:
+gemini-3.1-pro-preview    0.740801
+mistral-medium-3.1        0.165173
+gemini-2.5-flash          0.000000
+gemini-3-flash-preview   -0.020995
+mistral-large-2512       -0.025434
+dtype: float64
+
+Classement BT (Top 5) APRES correction longueur:
+gemini-3.1-pro-preview    0.679526
+mistral-medium-3.1        0.145540
+gemini-3-flash-preview    0.045622
+gemini-2.5-flash          0.000000
+mistral-medium-2508      -0.045186
+dtype: float64
+
+Coefficient associÚ Ó length_diff (normalisÚ): 0.1428
+
+Changements de rang majeurs:
+- glm-5: Rang base = 39 -> Rang corrigÚ = 52
+- grok-3-mini-beta: Rang base = 29 -> Rang corrigÚ = 39
+- trinity-large-preview: Rang base = 71 -> Rang corrigÚ = 62
+
+
+=== EXERCICE 3.2: Biais de position A/B ===
+
+--- Biais de position pour 'liked' ---
+liked      False  True 
+model_pos              
+a          14890  30602
+b          14746  31595
+Chi-deux = 8.6634, p-value = 3.25e-03
+Taux pour A : 0.00% | Taux pour B : 0.00%
+DiffÚrence absolue : 0.00% (avantage pour B)
+
+
+--- Biais de position pour 'creative' ---
+creative   False  True 
+model_pos              
+a          42270   2965
+b          42881   3201
+Chi-deux = 5.4992, p-value = 1.90e-02
+Taux pour A : 0.00% | Taux pour B : 0.00%
+DiffÚrence absolue : 0.00% (avantage pour B)
+
+
+--- Biais de position pour 'useful' ---
+useful     False  True 
+model_pos              
+a          34765  10470
+b          34803  11279
+Chi-deux = 22.1856, p-value = 2.48e-06
+Taux pour A : 0.00% | Taux pour B : 0.00%
+DiffÚrence absolue : 0.00% (avantage pour B)
+
+
+--- Biais de position pour 'incorrect' ---
+incorrect  False  True 
+model_pos              
+a          40200   5035
+b          41049   5033
+Chi-deux = 0.9946, p-value = 3.19e-01
+Taux pour A : 0.00% | Taux pour B : 0.00%
+DiffÚrence absolue : 0.00% (avantage pour B)
+
+

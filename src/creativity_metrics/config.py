@@ -44,3 +44,14 @@ class PipelineConfig:
         "model_b_name",
         "refers_to_model",
     ])
+
+@dataclass
+class MetricConfig:
+    mattr_window: int = 50
+    distinct_n: int = 2
+    rarity_ngram_n: int = 2
+    bertscore_lang: str = "fr"
+    neighbor_k: int = 5
+    min_sentence_count: int = 2
+    min_tokens_for_metrics: int = 3
+    rarity_reference_path: Optional[str] = None

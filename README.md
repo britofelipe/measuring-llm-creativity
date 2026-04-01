@@ -5,6 +5,15 @@ Projet Python modulaire pour :
 - calculer les métriques proposées pour **nouveauté**, **valeur** et **surprise**
 - produire des tableaux de synthèse, corrélations simples et comparaisons avec les annotations humaines (`creative`, `useful`, etc.)
 
+## État d'avancement
+
+- **Pipeline v0 opérationnel** sur `comparia-reactions` avec calcul des métriques de nouveauté, valeur et surprise.
+- **Creativity Index v0 implémenté** : normalisation robuste + agrégation pondérée (poids initiaux égaux).
+- **Optimisation supervisée ajoutée** : régression logistique (`creative`) pour apprendre des poids empiriques.
+- **Résultat Ex.3.1 (biais de longueur, `comparia-votes`)** : ρ Spearman = `0.1237` (p `< 2e-16`) ; coefficient BT `+0.1428`.
+- **Résultat Ex.3.2 (biais de position, `comparia-reactions`)** : avantage position B pour `liked` (p `= 0.003`), `useful` (p `= 2.48e-06`) et `creative` (p `= 0.019`) ; non significatif pour `incorrect` (p `= 0.319`).
+
+
 ## Structure
 
 - `src/creativity_metrics/config.py` : configuration globale
@@ -34,11 +43,21 @@ python scripts/run_pipeline.py \
   --output-dir outputs
 ```
 
-## Remarques
-
-- Les métriques utilisant des embeddings exigent un modèle `sentence-transformers`.
-- Les métriques `LLM judge` sont optionnelles. Le projet inclut une interface/stub propre, mais **ne lance pas automatiquement d’appel API**.
-- Le `N-gram Rarity Score` est calculé ici par défaut **sur le corpus compar:IA lui-même** (baseline empirique). Vous pourrez remplacer cette baseline plus tard par un corpus externe.
+To generate the N-gram reference from wikipedia:
+````
+python scripts/build_ngram_reference.py \
+  --dataset-name kaitchup/wikipedia-20220301-fr-sample-10k \
+  --split train \
+  --text-col text \
+  --ngram-n 2 \
+  --output-path resources/wikipedia_fr_sample_bigram_counts.pkl
+```
+```
+python scripts/run_pipeline.py \
+  --sample-size 50 \
+  --rarity-reference-path resources/wikipedia_fr_sample_bigram_counts.pkl \
+  --output-dir outputs_wiki_ref
+```
 
 ### Question 2 : Modèle Bradley-Terry (compar:IA)
 
