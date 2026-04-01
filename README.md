@@ -40,20 +40,17 @@ python scripts/run_pipeline.py \
 - Les métriques `LLM judge` sont optionnelles. Le projet inclut une interface/stub propre, mais **ne lance pas automatiquement d’appel API**.
 - Le `N-gram Rarity Score` est calculé ici par défaut **sur le corpus compar:IA lui-même** (baseline empirique). Vous pourrez remplacer cette baseline plus tard par un corpus externe.
 
-## Question 2 : Modèle Bradley-Terry (compar:IA)
+### Question 2 : Modèle Bradley-Terry (compar:IA)
 
-Pipeline pour classer les modèles selon les préférences humaines (`comparia-votes`) via l'estimation du modèle de Bradley-Terry.
+Analyse complète du classement des LLM par préférences humaines via le modèle de Bradley-Terry.
 
-### Structure (`src/bradley-terry/`)
-- `preprocessing.py` : Nettoyage, filtres de N comparaisons, matrices de gains ($W[i,j]$) et d'empates.
-- `exercise_2_1.py` : Entraînement MM du modèle global vs classement créativité (Spearman $\rho$).
-- `exercise_2_2.py` : Transitivité stochastique, power analysis, et modèle de Davidson pour *ex-æquo*.
-- `exercise_2_3.py` : Modèle à covariables (Régression Logistique GLMM) capturant l'effet du temps et de la longueur des réponses sur la préférence.
+#### Notebook Principal
+- [exercise_2_combined.ipynb](file:///Users/felipebrito/Workspace/measuring-llm-creativity/src/bradley-terry/exercise_2_combined.ipynb) : Contient l'intégralité des analyses (Exercices 2.1, 2.2 et 2.3).
+  - **2.1** : Modèle global vs créativité, intervalles de confiance par bootstrap.
+  - **2.2** : Transitivité stochastique, analyse de puissance, extension Davidson pour les ex-æquo.
+  - **2.3** : Modèles à covariables (Output length, turns, categories) et GLMM.
 
-### Exécution
-Assurez-vous d'être connecté à compte HuggingFace via `huggingface-cli login` pour télécharger `comparia-votes`.
-```bash
-python src/bradley-terry/exercise_2_1.py
-python src/bradley-terry/exercise_2_2.py
-python src/bradley-terry/exercise_2_3.py
-```
+### Utilisation
+1. Ouvrez le notebook `exercise_2_combined.ipynb` dans VS Code ou Jupyter.
+2. Assurez-vous d'avoir les dépendances installées (`statsmodels`, `datasets`, etc.).
+3. Les graphiques et résultats sont automatiquement sauvegardés dans le dossier `results/`.

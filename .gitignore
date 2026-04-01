@@ -212,4 +212,13 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+# Bradley-Terry Exercise files
+src/bradley-terry/exercise_2_1.py
+src/bradley-terry/exercise_2_2.py
+src/bradley-terry/exercise_2_3.py
+src/bradley-terry/exercise_2_1_notebook.py
+src/bradley-terry/exercise_2_2_notebook.py
+src/bradley-terry/exercise_2_3_notebook.py
+src/bradley-terry/preprocessing.py
 src/bradley-terry/agent.md
+results/
