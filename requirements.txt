@@ -7,3 +7,5 @@ sentence-transformers
 bert-score
 rouge-score
 tqdm
+datasets
+scikit-learn

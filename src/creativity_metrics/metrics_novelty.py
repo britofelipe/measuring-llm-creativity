@@ -9,6 +9,9 @@ import pandas as pd
 from .text_utils import tokenize, get_ngrams, count_ngrams
 from .embeddings import cosine_distance_vec
 
+import pickle
+from pathlib import Path
+
 
 def mattr(text: str, window_size: int = 50) -> float:
     tokens = tokenize(text)
@@ -30,6 +33,9 @@ def distinct_n(text: str, n: int = 2) -> float:
         return np.nan
     return len(set(grams)) / len(grams)
 
+def load_ngram_reference(path: str):
+    with Path(path).open("rb") as f:
+        return pickle.load(f)
 
 def build_ngram_reference(texts: List[str], n: int = 2) -> Counter:
     tokenized = [tokenize(t) for t in texts]
