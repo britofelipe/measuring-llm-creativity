@@ -1,0 +1,13 @@
+feature,coefficient
+novelty_ngram_rarity_norm,1.36407956355589
+novelty_distinct_n_norm,1.2328728502221775
+surprise_prompt_response_distance_norm,0.9494428713382079
+value_local_coherence_norm,0.8412919382986664
+surprise_distance_to_neighbors_norm,0.8120209723907331
+surprise_divergent_idea_count_norm,0.7447044245400816
+surprise_divergent_score_norm,0.5472907408972592
+value_bertscore_f1_norm,0.33812787555640267
+novelty_mattr_norm,0.15272976787035453
+surprise_unexpected_variance_norm,-0.13486952814696074
+novelty_semantic_distance_centroid_norm,-1.0823709275545177
+value_rouge_l_prompt_response_norm,-1.4702273820829321

@@ -1,0 +1,2 @@
+threshold,n,tp,tn,fp,fn,accuracy,precision,recall,f1,spearman_with_creative,mean_score_creative_true,mean_score_creative_false
+0.5,2000,99,821,1041,39,0.46,0.0868421052631579,0.717391304347826,0.15492957746478875,0.07733794210152643,0.5255099279490227,0.5092511451090935

@@ -1,0 +1,2 @@
+score_col,threshold,n,tp,tn,fp,fn,accuracy,precision,recall,f1,spearman_with_creative,mean_score_creative_true,mean_score_creative_false
+creativity_index_logreg,0.565,1914,64,1359,423,68,0.7434691745036572,0.13141683778234087,0.48484848484848486,0.20678513731825526,0.16159425564359972,0.5489084989186584,0.45215808858565126
